@@ -1,0 +1,216 @@
+---
+title: "census_import"
+author: "Matt Parker"
+date: "5/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidycensus)
+library(tidyverse)
+library(dplyr)
+library(sf)
+library(readxl)
+```
+
+```{r}
+# Get API key
+Sys.getenv("CENSUS_API_KEY")
+```
+
+Pull in acs5 2010 variables
+```{r}
+acs_vars_2010 <- load_variables(year=2010, dataset="acs5/subject",cache=TRUE)
+View(acs_vars_2010)
+```
+
+Pull in acs5 2019 variables
+```{r}
+acs_vars_2019 <- load_variables(year=2019, dataset="acs5/subject",cache=TRUE)
+View(acs_vars_2019)
+```
+
+
+Read in race, tenure, and education from acs2019 for Davidson County, with polygon boundaries
+```{r}
+nashville_census <-get_acs(survey = "acs5",
+                        year=2019, 
+                        variables=c(total_pop = "B01001_001",
+                                    pop_over25 = "B15003_001",
+                                    white = "B02001_002",
+                                    owner_occ = "B25003_002",
+                                    renter_occ = "B25003_003",
+                                    bachelors = "B15003_022",
+                                    masters = "B15003_023",
+                                    professional = "B15003_024",
+                                    doctorate = "B15003_025"
+                                    ),
+                        geography="tract", 
+                        state="TN",
+                        county="Davidson",
+                        cache=TRUE,
+                        geometry = TRUE,
+                        output="wide") #%>%
+            #colname_cleanup()
+#head(nashville_cprensus)
+#glimpse(nashville_census)
+#class(nashville_census)
+#view(nashville_census)
+```
+
+Format and Run calculations
+```{r}
+nashville_census_clean <- nashville_census %>%
+  select(!ends_with("M")) %>%
+  mutate(white_pct = whiteE / total_popE,
+         bach_pct = (bachelorsE + mastersE + professionalE + doctorateE) / pop_over25E,
+         rent_pct = renter_occE / (renter_occE + owner_occE)) %>%
+  select(!whiteE:doctorateE)
+#View(nashville_census_clean)
+```
+
+Get median household income and poverty figures from acs5 2019
+```{r}
+nashville_census_2 <-get_acs(survey = "acs5",
+                        year=2019, 
+                        variables=c(total_households="S1901_C01_001",
+                                    median_hhi = "S1901_C01_012",
+                                    poverty = "S1701_C03_001"),
+                        geography="tract", 
+                        state="TN",
+                        county="Davidson",
+                        cache=TRUE,
+                        output="wide") %>%
+  select(!c(NAME, ends_with("M")))
+#head(nashville_census_2)
+#glimpse(nashville_census_2)
+#class(nashville_census_2)
+#view(nashville_census_2)
+```
+
+Merge census dataframes
+```{r}
+nashville_census_df <- inner_join(nashville_census_clean, nashville_census_2, by="GEOID")
+colnames(nashville_census_df) <- c('geoid',
+                                   'tract_name',
+                                   'total_pop_2019',
+                                   'pop_over25_2019',
+                                   'white_pct_2019',
+                                   'bach_pct_2019',
+                                   'rent_pct_2019',
+                                   'total_households_2019',
+                                   'median_hhi_2019',
+                                   'poverty_pct_2019',
+                                   'geometry')
+#View(nashville_census_df)
+```
+
+Follow all same steps as above, but for 2010 (removing geometry)
+```{r}
+nashville_census_2010 <-get_acs(survey = "acs5",
+                        year=2010, 
+                        variables=c(total_pop = "B01001_001",
+                                    pop_over25 = "B15002_001",
+                                    white = "B02001_002",
+                                    owner_occ = "B25003_002",
+                                    renter_occ = "B25003_003",
+                                    bachelorsm = "B15002_015",
+                                    mastersm = "B15002_016",
+                                    professionalm = "B15002_017",
+                                    doctoratem = "B15002_018",
+                                    bachelorsf = "B15002_032",
+                                    mastersf = "B15002_033",
+                                    professionalf = "B15002_034",
+                                    doctoratef = "B15002_035"
+                                    ),
+                        geography="tract", 
+                        state="TN",
+                        county="Davidson",
+                        cache=TRUE,
+                        output="wide") #%>%
+            #colname_cleanup()
+#head(nashville_census_2010)
+#glimpse(nashville_census_2010)
+#class(nashville_census_2010)
+#view(nashville_census_2010)
+```
+
+Format and Run calculations
+```{r}
+nashville_census_2010_clean <- nashville_census_2010 %>%
+  select(!ends_with("M")) %>%
+  mutate(white_pct = whiteE / total_popE,
+         bach_pct = (bachelorsmE + mastersmE + professionalmE + doctoratemE + bachelorsfE + mastersfE + professionalfE + doctoratefE) / pop_over25E,
+         rent_pct = renter_occE / (renter_occE + owner_occE)) %>%
+  select(!whiteE:doctoratefE)
+#View(nashville_census_2010_clean)
+```
+
+Get median household income and poverty figures from acs5 2019
+```{r}
+nashville_census_2010_2 <-get_acs(survey = "acs5",
+                        year=2010, 
+                        variables=c(total_households="S1901_C01_001",
+                                    median_hhi = "S1901_C01_012",
+                                    poverty = "S1702_C02_001"),
+                        geography="tract", 
+                        state="TN",
+                        county="Davidson",
+                        cache=TRUE,
+                        output="wide") %>%
+  select(!c(NAME, ends_with("M")))
+#head(nashville_census_2010_2)
+#glimpse(nashville_census_2010_2)
+#class(nashville_census_2010_2)
+#view(nashville_census_2010_2)
+```
+
+Merge census dataframes
+```{r}
+nashville_census_2010_df <- inner_join(nashville_census_2010_clean, nashville_census_2010_2, by="GEOID") %>%
+  select(-NAME)
+colnames(nashville_census_2010_df) <- c('geoid',
+                                   'total_pop_2010',
+                                   'pop_over25_2010',
+                                   'white_pct_2010',
+                                   'bach_pct_2010',
+                                   'rent_pct_2010',
+                                   'total_households_2010',
+                                   'median_hhi_2010',
+                                   'poverty_pct_2010')
+#View(nashville_census_2010_df)
+```
+
+Merge 2010 and 2019 dataframes
+```{r}
+nashville_census_total <- inner_join(nashville_census_df, nashville_census_2010_df, by="geoid")
+view(nashville_census_total)
+```
+
+Calculate Differences
+```{r}
+nashville_census_total <- nashville_census_total %>%
+  mutate(total_pop_change = total_pop_2019 - total_pop_2010,
+         total_pop_pct_change = total_pop_change / total_pop_2010,
+         pop_over25_change = pop_over25_2019 - pop_over25_2010,
+         pop_over25_pcg_change = pop_over25_change / pop_over25_2010,
+         total_households_change = total_households_2019 - total_households_2010,
+         total_households_pct_change = total_households_change / total_households_2010,
+         white_value_change = white_pct_2019 - white_pct_2010,
+         white_pct_change = white_value_change / white_pct_2010,
+         bach_value_change = bach_pct_2019 - bach_pct_2010,
+         bach_pct_change = bach_value_change / bach_pct_2010,
+         rent_value_change = rent_pct_2019 - rent_pct_2010,
+         rent_pct_change = rent_value_change / rent_pct_2010,
+         median_value_change = median_hhi_2019 - median_hhi_2010,
+         median_pct_change = median_value_change / median_hhi_2010,
+         poverty_value_change = poverty_pct_2019 - poverty_pct_2010,
+         poverty_pct_change = poverty_value_change / poverty_pct_2010
+         )
+View(nashville_census_total)
+```
+
