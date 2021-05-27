@@ -188,7 +188,7 @@ colnames(nashville_census_2010_df) <- c('geoid',
 Merge 2010 and 2019 dataframes
 ```{r}
 nashville_census_total <- inner_join(nashville_census_df, nashville_census_2010_df, by="geoid")
-view(nashville_census_total)
+#view(nashville_census_total)
 ```
 
 Calculate Differences
@@ -206,11 +206,32 @@ nashville_census_total <- nashville_census_total %>%
          bach_pct_change = bach_value_change / bach_pct_2010,
          rent_value_change = rent_pct_2019 - rent_pct_2010,
          rent_pct_change = rent_value_change / rent_pct_2010,
-         median_value_change = median_hhi_2019 - median_hhi_2010,
-         median_pct_change = median_value_change / median_hhi_2010,
+         median_hhi_value_change = median_hhi_2019 - median_hhi_2010,
+         median_hhi_pct_change = median_hhi_value_change / median_hhi_2010,
          poverty_value_change = poverty_pct_2019 - poverty_pct_2010,
          poverty_pct_change = poverty_value_change / poverty_pct_2010
          )
+#View(nashville_census_total)
+```
+
+```{r}
+colnames(nashville_census_total)
+```
+
+```{r}
+nashville_census_total <- nashville_census_total %>%
+  relocate(geoid, tract_name, total_pop_2010, total_pop_2019, total_pop_change, total_pop_pct_change,
+           pop_over25_2010, pop_over25_2019, pop_over25_change, pop_over25_pcg_change,
+           total_households_2010, total_households_2019, total_households_change, total_households_pct_change,
+           white_pct_2010, white_pct_2019, white_value_change, white_pct_change,
+           bach_pct_2010, bach_pct_2019, bach_value_change, bach_pct_change,
+           rent_pct_2010, rent_pct_2019, rent_value_change, rent_pct_change,
+           median_hhi_2010, median_hhi_2019, median_hhi_value_change, median_hhi_pct_change,
+           poverty_pct_2010, poverty_pct_2019, poverty_value_change, poverty_pct_change, geometry)
 View(nashville_census_total)
+```
+
+```{r}
+#write_csv(nashville_census_total, "../data/nashville_census.csv")
 ```
 
